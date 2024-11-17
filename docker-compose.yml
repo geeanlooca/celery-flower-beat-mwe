@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7.4.1-alpine3.20
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/dаta:/root/redis
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PASSWORD=my-password
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=2
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+    scale: 3
+
+
+  scheduler:
+    build:
+      context: .
+      target: scheduler
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - ${FLOWER_WEB_PORT}:5555
+    depends_on:
+      - worker
+      - redis
